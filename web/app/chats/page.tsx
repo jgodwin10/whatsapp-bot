@@ -284,13 +284,35 @@ function Bubble({ message, showName }: { message: Message; showName: boolean }) 
   </div>;
 }
 
+// The bridge sends the QR as qrcode-terminal "small" text art, made for dark terminals:
+// each character is one column and two rows, and a filled glyph means a LIGHT module.
+// Redraw it as an SVG so it scales to fit the card with dark modules on white.
+function PairingQr({ text }: { text: string }) {
+  const lines = text.replace(/\n+$/, "").split("\n");
+  const width = Math.max(...lines.map(line => [...line].length));
+  const light: Record<string, [boolean, boolean]> = { "█": [true, true], "▀": [true, false], "▄": [false, true] };
+  let path = "";
+  lines.forEach((line, row) => {
+    const cells = [...line];
+    for (let col = 0; col < width; col++) {
+      const [topLight, bottomLight] = light[cells[col] ?? "█"] ?? [false, false];
+      if (!topLight) path += `M${col} ${row * 2}h1v1h-1z`;
+      if (!bottomLight) path += `M${col} ${row * 2 + 1}h1v1h-1z`;
+    }
+  });
+  return <svg viewBox={`0 0 ${width} ${lines.length * 2}`} shapeRendering="crispEdges" role="img" aria-label="WhatsApp pairing QR code">
+    <rect width="100%" height="100%" fill="#fff" />
+    <path d={path} fill="#000" />
+  </svg>;
+}
+
 function Pairing({ status }: { status: Status }) {
   return <main className="center-page">
     <div className="auth-card">
       <h1>Connect WhatsApp</h1>
       <p className="muted">Scan with the WhatsApp account you want to read. This page moves on by itself once you're linked.</p>
       {status.pairingQr
-        ? <div className="qr" aria-label="WhatsApp pairing QR code"><pre>{status.pairingQr}</pre></div>
+        ? <div className="qr"><PairingQr text={status.pairingQr} /></div>
         : <div className="notice">{status.lastError || "Waiting for the WhatsApp connection to start…"}</div>}
       <ol className="how-to"><li>Open WhatsApp on your phone</li><li>Go to Settings → Linked devices</li><li>Tap Link a device and scan the code</li></ol>
     </div>

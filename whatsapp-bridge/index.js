@@ -19,7 +19,7 @@ const messageRetentionDays = Number(process.env.WHATSAPP_MESSAGE_RETENTION_DAYS 
 const syncFullHistory = /^(1|true|yes|on)$/i.test(process.env.WHATSAPP_SYNC_FULL_HISTORY ?? "false");
 const pool = new Pool({
   connectionString: databaseUrl,
-  ssl: databaseUrl?.includes("sslmode=require") ? { rejectUnauthorized: false } : undefined,
+  ssl: /sslmode=require|supabase/.test(databaseUrl ?? "") ? { rejectUnauthorized: false } : undefined,
 });
 const reconnectDelayMs = 5_000;
 const maxReconnectDelayMs = 30_000;

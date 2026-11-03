@@ -42,9 +42,9 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 .segmented button { height: 34px; background: none; border: 0; border-radius: 7px; color: var(--text-2); }
 .segmented button.active { background: var(--panel-2); color: var(--text); }
 .notice { margin-top: 14px; padding: 10px 12px; background: rgba(247, 201, 107, 0.1); color: var(--warning); border-radius: 8px; font-size: 13.5px; overflow-wrap: anywhere; }
-/* The QR is drawn with text, so it needs fixed cells and a light, high-contrast backing to scan. */
-.qr { display: flex; justify-content: center; margin-top: 16px; padding: 12px; background: #fff; border-radius: 10px; overflow-x: auto; }
-.qr pre { margin: 0; color: #000; font: 11px/1 ui-monospace, Menlo, Consolas, monospace; }
+/* The QR is an SVG scaled to the card; the white backing doubles as the scan quiet zone. */
+.qr { margin: 16px auto 0; padding: 20px; width: min(100%, 320px); background: #fff; border-radius: 10px; }
+.qr svg { display: block; width: 100%; height: auto; }
 .how-to { margin: 16px 0 0; padding-left: 20px; color: var(--text-2); }
 .how-to li { margin-top: 4px; }
 
