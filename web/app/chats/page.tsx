@@ -59,8 +59,9 @@ function listTime(seconds: number) {
 }
 
 function preview(chat: Chat) {
-  if (chat.deleted) return "This message was deleted";
   const label = chat.kind && chat.kind !== "text" ? kindLabels[chat.kind] ?? kindLabels.other : null;
+  // Messages deleted before deletions were kept have no content left.
+  if (chat.deleted && !chat.body && !label) return "This message was deleted";
   const content = chat.body && label ? `${label}: ${chat.body}` : chat.body || label || "";
   if (chat.fromMe) return `You: ${content}`;
   return chat.isGroup && chat.senderName ? `${chat.senderName}: ${content}` : content;
@@ -156,7 +157,7 @@ export default function ChatsPage() {
             <Avatar name={name} id={chat.id} isGroup={chat.isGroup} />
             <span className="chat-row-text">
               <span className="chat-row-top"><strong dir="auto">{name}</strong><time>{listTime(chat.lastMessageAt)}</time></span>
-              <span className={`chat-row-preview${chat.deleted ? " deleted" : ""}`} dir="auto">{preview(chat)}</span>
+              <span className={`chat-row-preview${chat.deleted ? " deleted" : ""}`} dir="auto">{chat.deleted && <TrashIcon />}{preview(chat)}</span>
             </span>
           </a>;
         })}
@@ -262,6 +263,12 @@ function Conversation({ chatId, chat }: { chatId: string; chat: Chat | null }) {
   </>;
 }
 
+function TrashIcon() {
+  return <svg className="trash-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2.5 4h11M6.5 4V2.5h3V4M4 4l.7 9.5h6.6L12 4M6.75 6.5v4.5M9.25 6.5v4.5" />
+  </svg>;
+}
+
 function Bubble({ message, showName }: { message: Message; showName: boolean }) {
   const label = senderLabel(message);
   const kindLabel = message.kind !== "text" ? kindLabels[message.kind] ?? kindLabels.other : null;
@@ -269,8 +276,10 @@ function Bubble({ message, showName }: { message: Message; showName: boolean }) 
   return <div className={`row ${message.fromMe ? "out" : "in"}${showName ? " first" : ""}`}>
     <div className="bubble">
       {showName && <div className="sender" dir="auto" style={message.fromMe ? undefined : { color: colorFor(message.senderJid ?? label) }}>{label}</div>}
-      {message.deleted
-        ? <p className="deleted">🚫 This message was deleted</p>
+      {/* Deleted for everyone: still shown, flagged in the meta line. Rows deleted
+          before deletions were kept have no content left, so say so instead. */}
+      {message.deleted && !message.body && !kindLabel
+        ? <p className="deleted">This message was deleted</p>
         : <>
           {message.quotedBody && <blockquote style={{ borderColor: colorFor(message.quotedSenderJid ?? "") }}>
             <strong style={{ color: colorFor(message.quotedSenderJid ?? "") }} dir="auto">{quotedName}</strong>
@@ -279,7 +288,9 @@ function Bubble({ message, showName }: { message: Message; showName: boolean }) 
           {kindLabel && <p className="media-label">{kindLabel}</p>}
           {message.body && <p dir="auto">{message.body}</p>}
         </>}
-      <div className="meta">{message.edited && !message.deleted && "Edited · "}<time dateTime={new Date(message.sentAt * 1000).toISOString()}>{time(message.sentAt)}</time></div>
+      <div className="meta">
+        {message.deleted && <span className="deleted-tag" title="The sender deleted this message for everyone"><TrashIcon />Deleted · </span>}
+        {message.edited && "Edited · "}<time dateTime={new Date(message.sentAt * 1000).toISOString()}>{time(message.sentAt)}</time></div>
     </div>
   </div>;
 }

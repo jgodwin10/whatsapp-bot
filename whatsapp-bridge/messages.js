@@ -131,15 +131,15 @@ export function createMessageStore({ query, ignoredChats = new Set() }) {
     return rowCount > 0;
   }
 
-  // A deleted message stops being shown, as it does on the phone, and its text
-  // is not kept. Receipts and other updates are ignored.
+  // A message deleted for everyone is only marked deleted: its text and media
+  // label stay so the web app can still show it, flagged as deleted.
+  // Receipts and other updates are ignored.
   async function applyMessageUpdate({ key, update }) {
     if (!key?.id || !isReadableChat(key.remoteJid, ignoredChats)) return;
     const chatId = await chatIdFor(key);
     if (update.messageStubType === WAMessageStubType.REVOKE) {
       await query(
-        `UPDATE whatsapp_messages SET deleted = TRUE, kind = 'text', body = NULL, quoted_body = NULL, quoted_sender_jid = NULL
-         WHERE chat_id = $1 AND message_id = $2`,
+        "UPDATE whatsapp_messages SET deleted = TRUE WHERE chat_id = $1 AND message_id = $2",
         [chatId, key.id],
         "message delete",
       );

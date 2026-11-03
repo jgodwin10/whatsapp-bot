@@ -93,7 +93,7 @@ dbTest("a reply keeps what it was replying to", async () => {
   assert.deepEqual(rows, [{ quoted_sender_jid: ben, quoted_body: "coming?" }]);
 });
 
-dbTest("an edit replaces the text and a deletion removes it", async () => {
+dbTest("an edit replaces the text and a deletion keeps it, marked deleted", async () => {
   const edited = incoming(ada, text("teh"));
   const removed = incoming(ada, text("secret"));
   await store.saveMessage(edited);
@@ -101,7 +101,7 @@ dbTest("an edit replaces the text and a deletion removes it", async () => {
   await store.applyMessageUpdate({ key: edited.key, update: { message: { editedMessage: { message: text("the") } } } });
   await store.applyMessageUpdate({ key: removed.key, update: { message: null, messageStubType: WAMessageStubType.REVOKE } });
   await store.applyMessageUpdate({ key: edited.key, update: { status: 4 } });
-  assert.deepEqual((await messages()).map(({ body, edited: e, deleted }) => [body, e, deleted]), [["the", true, false], [null, false, true]]);
+  assert.deepEqual((await messages()).map(({ body, edited: e, deleted }) => [body, e, deleted]), [["the", true, false], ["secret", false, true]]);
 });
 
 dbTest("one person addressed by @lid and by number stays in one chat", async () => {
