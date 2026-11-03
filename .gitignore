@@ -1,0 +1,8 @@
+.env
+.env.local
+node_modules/
+.next/
+__pycache__/
+*.pyc
+.wwebjs_auth/
+.venv/

@@ -1,0 +1,19 @@
+{
+  "name": "whatsapp-chat-reader",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20 <23"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.24",
+    "dotenv": "^16.4.5",
+    "pino": "^9.14.0",
+    "pg": "^8.12.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

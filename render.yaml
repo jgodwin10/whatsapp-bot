@@ -1,0 +1,28 @@
+# Render Blueprint. Commit this at the repo root, then in the Render dashboard:
+# New -> Blueprint -> pick this repo. Set DATABASE_URL when prompted. Deploy
+# web/ separately on Vercel.
+services:
+  - type: worker
+    name: whatsapp-chat-reader-bridge
+    runtime: docker
+    plan: starter
+    region: oregon
+    rootDir: whatsapp-bridge
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Deploy intentionally: messages sent during a restart arrive when it reconnects.
+    autoDeploy: false
+    numInstances: 1
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: WHATSAPP_IGNORED_CHATS
+        sync: false
+      - key: WHATSAPP_SESSION_ID
+        value: "chat-reader"
+      - key: WHATSAPP_MAX_DISCONNECTED_SECONDS
+        value: "120"
+    disk:
+      name: whatsapp-auth
+      mountPath: /app/.wwebjs_auth
+      sizeGB: 1

@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+**/.env
+**/.env.*
+**/.venv
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/.next
+**/.wwebjs_auth
+**/.wwebjs_cache
