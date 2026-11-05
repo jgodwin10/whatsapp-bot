@@ -35,6 +35,7 @@ Open http://localhost:3000, create your account, and scan the QR code from Whats
 - **Older messages:** only what WhatsApp sends when you link, normally recent history. To ask for everything, set `WHATSAPP_SYNC_FULL_HISTORY=true` **before** scanning. A long-used account can take a long time and a lot of database space.
 - **Photos, videos and voice notes:** shown as a label with any caption. The files aren't downloaded.
 - **Edits and deletions:** these show the same way they do on your phone, and the text of a deleted message isn't kept.
+- **Ticks on your messages:** in DMs, your messages show ✓ sent, ✓✓ delivered and blue ✓✓ read, like on your phone. If the other person has read receipts turned off, they never turn blue. Group messages don't show ticks, and neither do messages saved before this was added until a new receipt arrives.
 - **Not read:** statuses, channels, and anything listed in `WHATSAPP_IGNORED_CHATS`.
 
 Messages are kept until you delete them, unless you set `WHATSAPP_MESSAGE_RETENTION_DAYS`. Linking stays active on your phone until you remove it under Linked devices.

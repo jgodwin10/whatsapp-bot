@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import pg from "pg";
-import { WAMessageStubType } from "@whiskeysockets/baileys";
+import { WAMessageStatus, WAMessageStubType } from "@whiskeysockets/baileys";
 import { createMessageStore, isConversationMessage, isReadableChat } from "./messages.js";
 
 // Needs a throwaway Postgres: every table is emptied between tests.
@@ -102,6 +102,67 @@ dbTest("an edit replaces the text and a deletion keeps it, marked deleted", asyn
   await store.applyMessageUpdate({ key: removed.key, update: { message: null, messageStubType: WAMessageStubType.REVOKE } });
   await store.applyMessageUpdate({ key: edited.key, update: { status: 4 } });
   assert.deepEqual((await messages()).map(({ body, edited: e, deleted }) => [body, e, deleted]), [["the", true, false], ["secret", false, true]]);
+});
+
+const statuses = async () => (await pool.query("SELECT status FROM whatsapp_messages ORDER BY id")).rows.map((r) => r.status);
+
+dbTest("your message moves from sent to delivered to read, and never backwards", async () => {
+  const sent = incoming(ada, text("seen yet?"), { fromMe: true });
+  await store.saveMessage({ ...sent, status: WAMessageStatus.SERVER_ACK });
+  assert.deepEqual(await statuses(), [WAMessageStatus.SERVER_ACK]);
+  await store.applyMessageUpdate({ key: sent.key, update: { status: WAMessageStatus.DELIVERY_ACK } });
+  assert.deepEqual(await statuses(), [WAMessageStatus.DELIVERY_ACK]);
+  await store.applyMessageUpdate({ key: sent.key, update: { status: WAMessageStatus.READ } });
+  assert.deepEqual(await statuses(), [WAMessageStatus.READ]);
+  await store.applyMessageUpdate({ key: sent.key, update: { status: WAMessageStatus.DELIVERY_ACK } });
+  await store.applyMessageUpdate({ key: sent.key, update: { status: WAMessageStatus.ERROR } });
+  assert.deepEqual(await statuses(), [WAMessageStatus.READ]);
+});
+
+dbTest("a message saved before this feature gets its status from the first receipt", async () => {
+  const sent = incoming(ada, text("old"), { fromMe: true });
+  await store.saveMessage(sent);
+  assert.deepEqual(await statuses(), [null]);
+  await store.applyMessageUpdate({ key: sent.key, update: { status: WAMessageStatus.READ } });
+  assert.deepEqual(await statuses(), [WAMessageStatus.READ]);
+});
+
+dbTest("reading someone's message yourself gives it no status", async () => {
+  const received = incoming(ada, text("hi"));
+  await store.saveMessage(received);
+  await store.applyMessageUpdate({ key: received.key, update: { status: WAMessageStatus.READ } });
+  assert.deepEqual(await statuses(), [null]);
+});
+
+dbTest("a read receipt from an unlinked @lid still reaches the message saved under the number", async () => {
+  const sent = incoming(ada, text("hello"), { fromMe: true, id: "shared-id" });
+  await store.saveMessage(sent);
+  await store.applyMessageUpdate({ key: { remoteJid: adaLid, id: "shared-id" }, update: { status: WAMessageStatus.READ } });
+  assert.deepEqual(await statuses(), [WAMessageStatus.READ]);
+});
+
+dbTest("a receipt from one chat does not touch the same id in another chat", async () => {
+  const sent = incoming(ada, text("hello"), { fromMe: true, id: "shared-id" });
+  await store.saveMessage(sent);
+  await store.applyMessageUpdate({ key: { remoteJid: ben, id: "shared-id" }, update: { status: WAMessageStatus.READ } });
+  assert.deepEqual(await statuses(), [null]);
+});
+
+dbTest("history can move a saved message forward, and repeats still count as duplicates", async () => {
+  const sent = incoming(ada, text("hello"), { fromMe: true });
+  assert.equal(await store.saveMessage({ ...sent, status: WAMessageStatus.SERVER_ACK }), true);
+  assert.equal(await store.saveMessage({ ...sent, status: WAMessageStatus.SERVER_ACK }), false);
+  await store.saveMessage({ ...sent, status: WAMessageStatus.READ });
+  await store.saveMessage({ ...sent, status: WAMessageStatus.DELIVERY_ACK });
+  assert.deepEqual(await statuses(), [WAMessageStatus.READ]);
+  assert.equal((await messages()).length, 1);
+});
+
+dbTest("group messages get no status", async () => {
+  const sent = incoming(group, text("hi all"), { fromMe: true });
+  await store.saveMessage({ ...sent, status: WAMessageStatus.READ });
+  await store.applyMessageUpdate({ key: sent.key, update: { status: WAMessageStatus.READ } });
+  assert.deepEqual(await statuses(), [null]);
 });
 
 dbTest("one person addressed by @lid and by number stays in one chat", async () => {

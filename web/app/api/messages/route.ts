@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const { rows } = await getPool().query(
       `SELECT m.id::text AS id, m.from_me AS "fromMe", m.sender_jid AS "senderJid",
               COALESCE(sender.name, m.sender_name, sender.notify) AS "senderName",
-              m.kind, m.body, m.edited, m.deleted, m.sent_at AS "sentAt",
+              m.kind, m.body, m.edited, m.deleted, m.status, m.sent_at AS "sentAt",
               m.quoted_body AS "quotedBody", m.quoted_sender_jid AS "quotedSenderJid",
               COALESCE(quoted.name, quoted.notify) AS "quotedSenderName"
        FROM whatsapp_messages m

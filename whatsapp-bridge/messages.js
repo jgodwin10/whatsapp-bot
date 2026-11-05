@@ -1,4 +1,4 @@
-import { getContentType, normalizeMessageContent, WAMessageStubType } from "@whiskeysockets/baileys";
+import { getContentType, normalizeMessageContent, WAMessageStatus, WAMessageStubType } from "@whiskeysockets/baileys";
 
 // WhatsApp delivers these as messages, but nobody wrote them.
 const nonConversationTypes = new Set([
@@ -46,6 +46,11 @@ function timestampSeconds(message) {
   const timestamp = message.messageTimestamp;
   const value = typeof timestamp === "number" ? timestamp : Number(timestamp?.toString?.() ?? timestamp);
   return Number.isFinite(value) && value > 0 ? value : Date.now() / 1000;
+}
+
+// Pending and failed sends have no tick to show, so only these steps are kept.
+function deliveryStatus(status) {
+  return status >= WAMessageStatus.SERVER_ACK && status <= WAMessageStatus.PLAYED ? status : null;
 }
 
 export function isConversationMessage(message) {
@@ -114,6 +119,9 @@ export function createMessageStore({ query, ignoredChats = new Set() }) {
       ? messageBody(context.quotedMessage) ?? `[${messageKind(context.quotedMessage)}]`
       : null;
     const sentAt = timestampSeconds(message);
+    // Group receipts are per participant and aren't tracked, so a group message
+    // gets no ticks rather than one stuck on "sent".
+    const status = key.fromMe && !isGroup ? deliveryStatus(message.status) : null;
     const { rowCount } = await query(
       `WITH chat AS (
          INSERT INTO whatsapp_chats (chat_id, is_group, last_message_at) VALUES ($1, $2, $9)
@@ -121,11 +129,12 @@ export function createMessageStore({ query, ignoredChats = new Set() }) {
            last_message_at = GREATEST(whatsapp_chats.last_message_at, EXCLUDED.last_message_at)
        )
        INSERT INTO whatsapp_messages
-         (chat_id, message_id, sender_jid, sender_name, from_me, kind, body, quoted_sender_jid, quoted_body, sent_at)
-       VALUES ($1, $3, $4, $5, $6, $7, $8, $10, $11, $9)
-       ON CONFLICT (chat_id, message_id) DO NOTHING`,
+         (chat_id, message_id, sender_jid, sender_name, from_me, kind, body, quoted_sender_jid, quoted_body, sent_at, status)
+       VALUES ($1, $3, $4, $5, $6, $7, $8, $10, $11, $9, $12)
+       ON CONFLICT (chat_id, message_id) DO UPDATE SET status = EXCLUDED.status
+       WHERE EXCLUDED.status > COALESCE(whatsapp_messages.status, 0)`,
       [chatId, isGroup, key.id, senderJid, senderName, Boolean(key.fromMe), messageKind(message.message), messageBody(message.message),
-        sentAt, context?.quotedMessage ? await phoneJidFor(context.participant) : null, quotedBody],
+        sentAt, context?.quotedMessage ? await phoneJidFor(context.participant) : null, quotedBody, status],
       "message insert",
     );
     return rowCount > 0;
@@ -133,10 +142,24 @@ export function createMessageStore({ query, ignoredChats = new Set() }) {
 
   // A message deleted for everyone is only marked deleted: its text and media
   // label stay so the web app can still show it, flagged as deleted.
-  // Receipts and other updates are ignored.
+  // Other updates are ignored.
   async function applyMessageUpdate({ key, update }) {
     if (!key?.id || !isReadableChat(key.remoteJid, ignoredChats)) return;
     const chatId = await chatIdFor(key);
+    // Baileys can merge a receipt and an edit into one update, so this comes first.
+    const status = deliveryStatus(update.status);
+    if (status !== null) {
+      // Receipts can arrive out of order, so a message never moves backwards.
+      // A person may read from an @lid this bridge can't link to their number yet,
+      // while the message is saved under the number: then only the id can match.
+      await query(
+        `UPDATE whatsapp_messages SET status = GREATEST(status, $3)
+         WHERE message_id = $2 AND from_me AND chat_id NOT LIKE '%@g.us'
+           AND (chat_id = $1 OR $1 LIKE '%@lid')`,
+        [chatId, key.id, status],
+        "message status update",
+      );
+    }
     if (update.messageStubType === WAMessageStubType.REVOKE) {
       await query(
         "UPDATE whatsapp_messages SET deleted = TRUE WHERE chat_id = $1 AND message_id = $2",

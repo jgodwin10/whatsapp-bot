@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS whatsapp_messages (
   sent_at DOUBLE PRECISION NOT NULL,
   UNIQUE (chat_id, message_id)
 );
+-- How far your own DM has got, using WhatsApp's numbering: 2 sent, 3 delivered,
+-- 4 read, 5 played. NULL when unknown, and always for groups and incoming messages.
+ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS status SMALLINT;
+CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_own_id ON whatsapp_messages (message_id) WHERE from_me;
 CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_chat_time ON whatsapp_messages (chat_id, sent_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_sent_at ON whatsapp_messages (sent_at);
 CREATE TABLE IF NOT EXISTS bridge_status (

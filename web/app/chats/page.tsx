@@ -8,7 +8,7 @@ type Chat = {
 };
 type Message = {
   id: string; fromMe: boolean; senderJid: string | null; senderName: string | null;
-  kind: string; body: string | null; edited: boolean; deleted: boolean; sentAt: number;
+  kind: string; body: string | null; edited: boolean; deleted: boolean; status: number | null; sentAt: number;
   quotedBody: string | null; quotedSenderJid: string | null; quotedSenderName: string | null;
 };
 type Status = { connected: boolean; lastError: string | null; pairingQr: string | null };
@@ -269,6 +269,18 @@ function TrashIcon() {
   </svg>;
 }
 
+// WhatsApp's numbering: 2 sent, 3 delivered, 4 read, 5 played (a voice note).
+const statusLabels: Record<number, string> = { 2: "Sent", 3: "Delivered", 4: "Read", 5: "Played" };
+
+function Ticks({ status }: { status: number }) {
+  const label = statusLabels[status];
+  if (!label) return null;
+  return <svg className={`ticks${status >= 4 ? " seen" : ""}`} viewBox="0 0 18 12" width="16" height="11" role="img" aria-label={label} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <title>{label}</title>
+    <path d={status === 2 ? "M3.5 6.5l3 3 6-7" : "M1 6.5l3 3 6-7M7.5 8.5l1 1 6-7"} />
+  </svg>;
+}
+
 function Bubble({ message, showName }: { message: Message; showName: boolean }) {
   const label = senderLabel(message);
   const kindLabel = message.kind !== "text" ? kindLabels[message.kind] ?? kindLabels.other : null;
@@ -290,7 +302,8 @@ function Bubble({ message, showName }: { message: Message; showName: boolean }) 
         </>}
       <div className="meta">
         {message.deleted && <span className="deleted-tag" title="The sender deleted this message for everyone"><TrashIcon />Deleted · </span>}
-        {message.edited && "Edited · "}<time dateTime={new Date(message.sentAt * 1000).toISOString()}>{time(message.sentAt)}</time></div>
+        {message.edited && "Edited · "}<time dateTime={new Date(message.sentAt * 1000).toISOString()}>{time(message.sentAt)}</time>
+        {message.fromMe && message.status !== null && <Ticks status={message.status} />}</div>
     </div>
   </div>;
 }
