@@ -22,6 +22,8 @@ services:
         value: "chat-reader"
       - key: WHATSAPP_MAX_DISCONNECTED_SECONDS
         value: "120"
+      - key: WHATSAPP_SUPPRESS_DELIVERY_RECEIPTS
+        value: "true"
     disk:
       name: whatsapp-auth
       mountPath: /app/.wwebjs_auth

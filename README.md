@@ -37,6 +37,7 @@ Open http://localhost:3000, create your account, and scan the QR code from Whats
 - **Edits and deletions:** these show the same way they do on your phone, and the text of a deleted message isn't kept.
 - **Ticks on your messages:** in DMs, your messages show ✓ sent, ✓✓ delivered and blue ✓✓ read, like on your phone. If the other person has read receipts turned off, they never turn blue. Group messages don't show ticks, and neither do messages saved before this was added until a new receipt arrives.
 - **Not read:** statuses, channels, and anything listed in `WHATSAPP_IGNORED_CHATS`.
+- **One tick for senders:** the bridge withholds its delivery receipt by default. WhatsApp can retry an incoming message, but duplicate saves are safely ignored. Set `WHATSAPP_SUPPRESS_DELIVERY_RECEIPTS=false` if that affects reliability for your account.
 
 Messages are kept until you delete them, unless you set `WHATSAPP_MESSAGE_RETENTION_DAYS`. Linking stays active on your phone until you remove it under Linked devices.
 

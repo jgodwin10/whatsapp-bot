@@ -28,6 +28,9 @@ const maxDisconnectedMs = Math.max(30, Number(process.env.WHATSAPP_MAX_DISCONNEC
 const decryptFailureLimit = Math.max(1, Number(process.env.WHATSAPP_DECRYPT_FAILURE_LIMIT ?? 3));
 const decryptFailureWindowMs = Math.max(30, Number(process.env.WHATSAPP_DECRYPT_FAILURE_WINDOW_SECONDS ?? 120)) * 1_000;
 const resetAuthOnStart = /^(1|true|yes|on)$/i.test(process.env.WHATSAPP_RESET_AUTH_ON_START ?? "false");
+// Default to one tick for this read-only bridge. Set this to false only if
+// WhatsApp retries make the connection unreliable for a particular account.
+const suppressDeliveryReceipts = /^(1|true|yes|on)$/i.test(process.env.WHATSAPP_SUPPRESS_DELIVERY_RECEIPTS ?? "true");
 const sessionId = (process.env.WHATSAPP_SESSION_ID ?? "chat-reader").replace(/[^a-zA-Z0-9_-]/g, "_");
 const authDirectory = path.join(process.env.WHATSAPP_AUTH_DIR ?? ".wwebjs_auth", `baileys-${sessionId}`);
 
@@ -281,6 +284,10 @@ async function connect() {
     keepAliveIntervalMs: 20_000,
     // Staying offline keeps notifications arriving on the phone as usual.
     markOnlineOnConnect: false,
+    // This non-standard Baileys patch suppresses the automatic delivery
+    // receipt for incoming messages. WhatsApp may retry messages that it has
+    // not been told were delivered.
+    suppressDeliveryReceipts,
     syncFullHistory,
     // Baileys' default post-connect queries fetch web-client settings we never
     // use; WhatsApp can time those requests out even though the socket is healthy.
